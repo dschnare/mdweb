@@ -11,7 +11,7 @@ The **mdweb** toolkit is based on [CWEB](http://sunburn.stanford.edu/~knuth/cweb
 
 A tangled file is any text file that contains documentation written in [Markdown](http://daringfireball.net/projects/markdown/) delimited by code blocks. When untangling a tangled file, all code blocks with a given name will be concatenated together. Code blocks may include other code blocks.
 
-Since Markdown is being used as the preferred format for documentation the Markdown package from the Python Package Index must be installed before running the *mdweave* script.
+Since Markdown is being used as the preferred format for documentation the [Markdown](http://pypi.python.org/pypi/Markdown/2.1.1) package from the Python Package Index must be installed before running the *mdweave* script.
 
 
 <h2 id="mdtangle">mdtangle</h2>
