@@ -1,16 +1,16 @@
-mdweb - MarkdownWEB Literate Programming Toolkit
-================
-
-
 Literate Programming
-----------------------
+================
 
 Literate programming is a technique of writing software where the emphasis is on writing source code meant to be consumed by humans rather than a machine. That is, a source code document consists of a document mostly written in a natural language delimited by source code blocks.
 
 This document is in fact a literate program. In fact the *mweave* Python script was produced by running the *mdtangle* script:
 
     python mdtangle.py -c=mdweave.py -i=readme.md > mdweave.py
+
  
+mdweb - MarkdownWEB Literate Programming Toolkit
+================
+
 
 Overview
 ----------------------
