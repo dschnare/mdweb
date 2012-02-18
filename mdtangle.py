@@ -73,4 +73,7 @@ parser.add_argument('-v', '--version', action='version', version='%(prog)s 1.0',
 args = parser.parse_args()
 
 code = untangle(args.input, args.code_block)
-sys.stdout.buffer.write(code.encode('utf-8'))
+if sys.version_info.major >= 3:
+  sys.stdout.buffer.write(code.encode('utf-8'))
+else:
+  sys.stdout.write(code.encode('utf-8'))

@@ -187,7 +187,10 @@ The arguments `--input` and `--code-block` are passed to the `untangle` function
     args = parser.parse_args()
 
     code = untangle(args.input, args.code_block)
-    sys.stdout.buffer.write(code.encode('utf-8'))
+    if sys.version_info.major >= 3:
+      sys.stdout.buffer.write(code.encode('utf-8'))
+    else:
+      sys.stdout.write(code.encode('utf-8'))
     @
     
     
@@ -211,6 +214,8 @@ Here the standard Python libraries are imported and the `markdown` library.
     <<mdweave-imports>>=
     import markdown
     import argparse
+    import codecs
+    import sys
     import re
     @
     
@@ -219,14 +224,14 @@ Here the standard Python libraries are imported and the `markdown` library.
 The main script creates an argument parser that accepts the following arguments:
 
 - `'-i, --input'` - The name of the Markdown file to process.
-- `'-f, --format'` - The output format (xhtml|xhtml1|xhtml5|html|html4|html5)
+- `'-f, --format'` - The output format (xhtml | xhtml1 | xhtml5 | html | html4 | html5)
 
 The `--input` file is read using the UTF-8 character encoding then passed to the `markdown` function for processing. The results are written to standard out.
 
     <<mdweave-main>>=
     parser = argparse.ArgumentParser(description='A Python script that will produce nicely formatted and printable documentation from a Markdown document as an HTML file.')
     parser.add_argument('-i', '--input', required=True, help='The path to the input Markdown file.')
-    parser.add_argument('-f', '--format', default='html5', help='The output format (xhtml|xhtml1|xhtml5|html|html4|html5).')
+    parser.add_argument('-f', '--format', default='html5', help='The output format (xhtml | xhtml1 | xhtml5 | html | html4 | html5).')
     parser.add_argument('-v', '--version', action='version', version='%(prog)s 1.0', help='The version inforamtion.')
     args = parser.parse_args()
 
@@ -234,5 +239,8 @@ The `--input` file is read using the UTF-8 character encoding then passed to the
     text = file.read()
     file.close()
     html = markdown.markdown(text, output_format=args.format)
-    sys.stdout.buffer.write(html.encode('utf-8'))
+    if sys.version_info.major >= 3:
+      sys.stdout.buffer.write(html.encode('utf-8'))
+    else:
+      sys.stdout.write(html.encode('utf-8'))
     @
