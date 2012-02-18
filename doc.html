@@ -1,0 +1,198 @@
+<h1>Literate Programming</h1>
+<p>Literate programming is a technique of writing software where the emphasis is on writing source code meant to be consumed by humans rather than a machine. That is, a source code document consists of a document mostly written in a natural language delimited by source code blocks.</p>
+<p>This document is in fact a literate program. In fact the <em>mweave</em> Python script was produced by running the <em>mdtangle</em> script:</p>
+<pre><code>python mdtangle.py -c=mdweave.py -i=readme.md &gt; mdweave.py
+</code></pre>
+<h1>mdweb - MarkdownWEB Literate Programming Toolkit</h1>
+<h2>Overview</h2>
+<p>The <strong>mdweb</strong> toolkit is based on <a href="http://sunburn.stanford.edu/~knuth/cweb.html">CWEB</a> by Donald Knuth and <a href="http://www.cs.tufts.edu/~nr/noweb/">noweb</a> by Norman Ramsey. mdweb is written in Python 2.7+ and comes with the following scripts:</p>
+<ul>
+<li><a href="#mdtangle">mdtangle.py</a> - A script that will extract source code from a Markdown document.</li>
+<li><a href="#mdweave">mdweave.py</a> - A script that will produce nicely formatted and printable documentation from a Markdown document as an HTML file.</li>
+</ul>
+<p>A tangled file is any text file that contains documentation written in <a href="http://daringfireball.net/projects/markdown/">Markdown</a> delimited by code blocks. When untangling a tangled file, all code blocks with a given name will be concatenated together. Code blocks may include other code blocks.</p>
+<p>Since Markdown is being used as the preferred format for documentation the <a href="http://pypi.python.org/pypi/Markdown/2.1.1">Markdown</a> package from the Python Package Index must be installed before running the <em>mdweave</em> script.</p>
+<h2 id="mdtangle">mdtangle</h2>
+
+<pre><code>&lt;&lt;mdtangle.py&gt;&gt;=
+&lt;&lt;mdtangle-imports&gt;&gt;
+&lt;&lt;mdtangle-constants&gt;&gt;
+&lt;&lt;mdtangle-untangle&gt;&gt;
+&lt;&lt;mdtangle-load-file&gt;&gt;
+&lt;&lt;mdtangle-code-blocks&gt;&gt;
+&lt;&lt;mdtangle-process-code-blocks&gt;&gt;
+&lt;&lt;mdtangle-include-command&gt;&gt;
+&lt;&lt;mdtangle-include-code-block&gt;&gt;
+&lt;&lt;mdtangle-main&gt;&gt;
+@
+</code></pre>
+<h3>Usage</h3>
+<pre><code>python mdtangle.py -c=name-of-code-block -i=path-to-file.md &gt; source-code
+</code></pre>
+<h3>Imports</h3>
+<p>We import several libraries from the standard Python library. We raise an error if the version of Python is less than 2.7.</p>
+<pre><code>&lt;&lt;mdtangle-imports&gt;&gt;=
+import sys
+
+if sys.version_info &lt; (2, 7):
+  raise 'Must use Python 2.7 or greater.'
+
+import codecs
+import re
+import string
+import os
+import argparse
+
+if sys.version_info.major &gt;= 3:
+  unicode = str
+  string.join = lambda string, sep: sep.join(string)
+@
+</code></pre>
+<h3>Constants</h3>
+<p>Here several constants are defined that describe several formats used to identify code blocks and the include command. The <code>CODE_BLOCK_GLUE</code> is used to concatenate code blocks with the same name. The replacement fields in these constants will be expanded to a code block name.</p>
+<pre><code>&lt;&lt;mdtangle-constants&gt;&gt;=
+CODE_BLOCK_BEGIN = '&lt;&lt;{}&gt;&gt;=\n?'
+CODE_BLOCK_END = '@(?:\n|$)'
+CODE_BLOCK_GLUE = '\n'
+INCLUDE_COMMAND = '^(.*?&lt;&lt;{}&gt;&gt;.*)$'
+@
+</code></pre>
+<h3>Untangling</h3>
+<p>To untangle code blocks from a tangled file we retrieve all code blocks whose <code>name</code> equals the specified code block name, from the file specified. Code blocks with the same name will be concatenate. The file will be opened using a UTF-8 character encoding so as to support localized tangled files.</p>
+<pre><code>&lt;&lt;mdtangle-untangle&gt;&gt;=
+def untangle(filename, code_block_name):
+  file = load_file_using_utf8(filename)
+  code_blocks = get_code_blocks(file, code_block_name)
+  code = string.join(code_blocks, CODE_BLOCK_GLUE)
+  return code
+@
+</code></pre>
+<h4>Loading a Tangled File</h4>
+<p>To load a tangled file we define the <code>load_file_using_utf8</code> function that loads a file using the UTF-8 character encoding with a <code>strict</code> error mode. Once the file has been synchronously loaded, the BOM is removed if it exists, then the resulting <code>unicode</code> object is returned. This function will not catch any exceptions thrown by attempting to open the file. If the file does not exist then an <code>IOError</code> is raised, if an encoding error is encountered then a <code>ValueError</code> is raised.</p>
+<pre><code>&lt;&lt;mdtangle-load-file&gt;&gt;=
+def load_file_using_utf8(filename):
+  file = codecs.open(filename, 'r', 'utf-8', 'strict')
+  text = file.read()
+  file.close()
+  bom = unicode(codecs.BOM_UTF8, 'utf-8')
+  text = text.lstrip(bom)
+  return text
+@
+</code></pre>
+<h4>Retrieving Code Blocks</h4>
+<p>Given <code>text</code> and <code>code_block_name</code> as arguments the <code>get_code_blocks</code> function will attempt to retrieve all code blocks from within the specified <code>text</code> whose name equals the value of <code>code_block_name</code>. The <code>text</code> argument is expected to be either a <code>unicode</code> or <code>str</code> object. Before retrieving all code blocks the code block pattern is prefixed with a group that captures all leading characters before the start of a code block. This group will be used to trim all leading characters from each line of the code block (i.e. whitespace).</p>
+<pre><code>&lt;&lt;mdtangle-code-blocks&gt;&gt;=
+def get_code_blocks(text, code_block_name):
+  begin = CODE_BLOCK_BEGIN.format(re.escape(code_block_name))
+  end = CODE_BLOCK_END.format(re.escape(code_block_name))
+  pattern = '^(.*?)' + begin + '(.*?)' + end
+  groups = re.findall(pattern, text, re.DOTALL | re.MULTILINE)
+  return process_code_blocks(text, groups)
+@
+</code></pre>
+<h4>Processing Code Blocks</h4>
+<p>When processing code blocks leading characters before a code block is open is stripped from each line in the code block and the include command in run on the code block.</p>
+<pre><code>&lt;&lt;mdtangle-process-code-blocks&gt;&gt;=
+def process_code_blocks(text, groups):
+  code_blocks = []
+  for leading, code_block in groups:
+    leading = len(leading)
+    if leading != 0:
+      code_block = re.sub('^.{' + str(leading) + '}', '', code_block, flags=re.MULTILINE)
+    code_block = run_include_command(text, code_block)
+    code_blocks.append(code_block)
+  return code_blocks
+@
+</code></pre>
+<h5>The Include Command</h5>
+<p>The include command permits code blocks to include other code blocks. It works by searching the specified <code>text</code> for code blocks whose name matches the code block name in the command. The name of the code block to include can come from another file if the name has the following format: <code>file-name:code-block-name</code>. If the filename is relative it will be resolved relative to the file performing the include. When inserting a code block the entire line containing the command will be replaced with the code block so that all indentation will be preserved for the included code block. </p>
+<p>We start by finding all strings that match the include command pattern. The matched regular expression groups are saved in a list of tuples, where each tuple has the entire line of text at index <code>[0]</code> and the code block name to include at index <code>[1]</code>.</p>
+<p>Next, we iterate over the list of tuples and replace, in the code block, every occurrence of the <code>command</code> with the code blocks whose name matches <code>name</code> then we return the <code>code_block</code>.</p>
+<pre><code>&lt;&lt;mdtangle-include-command&gt;&gt;=
+def run_include_command(text, code_block):
+  pattern = INCLUDE_COMMAND.format('([^{}]+?)')
+  regexp_groups = re.findall(pattern, code_block, re.MULTILINE)
+  for command, name in regexp_groups:
+    nested_code_block = include_code_block(text, name)
+    code_block = code_block.replace(command, nested_code_block)
+  return code_block
+@
+</code></pre>
+<p>To include a code block first we check if the <code>code_block_name</code> contains a filename. If a filename is found then the referenced file will be loaded using the UTF-8 character encoding and then the code block will be retrieved from its text. Otherwise, the code block will be retrieved from the <code>text</code> of the current tangled file.</p>
+<pre><code>&lt;&lt;mdtangle-include-code-block&gt;&gt;=
+def include_code_block(text, code_block_name):
+  pieces = code_block_name.split(':')
+  if len(pieces) &gt;= 2:
+    path = pieces[0]
+    if not os.path.isabs(path): path = os.path.join(os.path.relpath(__file__), path)
+    text = load_file_using_utf8(pieces[0])
+    code_block_name = string.join(pieces[1:], '')
+  return string.join(get_code_blocks(text, code_block_name), CODE_BLOCK_GLUE)
+@
+</code></pre>
+<h3>The main script</h3>
+<p>The main script creates an argument parser that accepts the following arguments:</p>
+<ul>
+<li><code>'-c, '--code-block'</code> - The name of the code block to retrieve.</li>
+<li><code>'-i', '--input'</code> - The path to the input tangled Markdown file.</li>
+<li><code>'-v', '--version'</code> - The version information.</li>
+</ul>
+<p>The arguments <code>--input</code> and <code>--code-block</code> are passed to the <code>untangle</code> function and the result is written to standard output.</p>
+<pre><code>&lt;&lt;mdtangle-main&gt;&gt;=
+parser = argparse.ArgumentParser(description='A Python script that will extract source code from a Markdown document.')
+parser.add_argument('-c', '--code-block', required=True, help='The name of the code block to retrieve.')
+parser.add_argument('-i', '--input', required=True, help='The path to the input tangled Markdown file.')
+parser.add_argument('-v', '--version', action='version', version='%(prog)s 1.0', help='The version inforamtion.')
+args = parser.parse_args()
+
+code = untangle(args.input, args.code_block)
+if sys.version_info.major &gt;= 3:
+  sys.stdout.buffer.write(code.encode('utf-8'))
+else:
+  sys.stdout.write(code.encode('utf-8'))
+@
+</code></pre>
+<h2 id="mdweave">mdweave</h2>
+
+<pre><code>&lt;&lt;mdweave.py&gt;&gt;=
+&lt;&lt;mdweave-imports&gt;&gt;
+&lt;&lt;mdweave-main&gt;&gt;
+@
+</code></pre>
+<h3>Usage</h3>
+<pre><code>python mdweave.py -i=path-to-file.md -f=html5 &gt; html-document.html
+</code></pre>
+<h3>Imports</h3>
+<p>Here the standard Python libraries are imported and the <code>markdown</code> library.</p>
+<pre><code>&lt;&lt;mdweave-imports&gt;&gt;=
+import markdown
+import argparse
+import codecs
+import sys
+import re
+@
+</code></pre>
+<h3>Main script</h3>
+<p>The main script creates an argument parser that accepts the following arguments:</p>
+<ul>
+<li><code>'-i, --input'</code> - The name of the Markdown file to process.</li>
+<li><code>'-f, --format'</code> - The output format (xhtml | xhtml1 | xhtml5 | html | html4 | html5)</li>
+</ul>
+<p>The <code>--input</code> file is read using the UTF-8 character encoding then passed to the <code>markdown</code> function for processing. The results are written to standard out.</p>
+<pre><code>&lt;&lt;mdweave-main&gt;&gt;=
+parser = argparse.ArgumentParser(description='A Python script that will produce nicely formatted and printable documentation from a Markdown document as an HTML file.')
+parser.add_argument('-i', '--input', required=True, help='The path to the input Markdown file.')
+parser.add_argument('-f', '--format', default='html5', help='The output format (xhtml | xhtml1 | xhtml5 | html | html4 | html5).')
+parser.add_argument('-v', '--version', action='version', version='%(prog)s 1.0', help='The version inforamtion.')
+args = parser.parse_args()
+
+file = codecs.open(args.input, 'r', 'utf-8')
+text = file.read()
+file.close()
+html = markdown.markdown(text, output_format=args.format)
+if sys.version_info.major &gt;= 3:
+  sys.stdout.buffer.write(html.encode('utf-8'))
+else:
+  sys.stdout.write(html.encode('utf-8'))
+@
+</code></pre>
